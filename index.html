@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Text to Voice Tool - Sekhar Yadav</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      color: #222;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 700px;
+      margin: auto;
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
+    textarea {
+      width: 100%;
+      height: 150px;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      /* FIX: This prevents the textarea from overflowing its container */
+      box-sizing: border-box;
+    }
+    select, input[type=range] {
+      width: 100%;
+      margin-top: 5px;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    input[type=range] {
+      padding: 0;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    .speak {
+      background: linear-gradient(to right, #6366f1, #8b5cf6);
+      color: white;
+    }
+    .stop {
+      background: #ddd;
+      margin-left: 10px;
+    }
+    .credit {
+      margin-top: 25px;
+      text-align: right;
+      font-size: 14px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Text → Voice (Web)</h1>
+    <p style="text-align:center;">Created by <strong>Sekhar Yadav</strong></p>
+    <p>In-browser playback using the Web Speech API. The app auto-selects an Indian voice (if available).</p>
+
+    <label for="text">Enter text</label>
+    <textarea id="text">Hello — type something and press Speak! Try: "Namaste, mera naam Sekhar Yadav hai."</textarea>
+
+    <label for="voice">Voice</label>
+    <select id="voice"></select>
+
+    <label for="rate">Rate: <span id="rate-value">1</span>x</label>
+    <input type="range" id="rate" min="0.5" max="2" step="0.05" value="1">
+
+    <label for="pitch">Pitch: <span id="pitch-value">1</span></label>
+    <input type="range" id="pitch" min="0.5" max="2" step="0.05" value="1">
+
+    <label for="volume">Volume: <span id="volume-value">100</span>%</label>
+    <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
+
+    <button class="speak" id="speak">Speak</button>
+    <button class="stop" id="stop">Stop</button>
+
+    <div class="credit">Made with ❤️ by <strong>Sekhar Yadav</strong></div>
+  </div>
+
+  <script>
+    // IMPROVEMENT: Check for browser support first
+    if ('speechSynthesis' in window) {
+      const textEl = document.getElementById('text');
+      const voiceSelect = document.getElementById('voice');
+      const rateEl = document.getElementById('rate');
+      const pitchEl = document.getElementById('pitch');
+      const volumeEl = document.getElementById('volume');
+      const speakBtn = document.getElementById('speak');
+      const stopBtn = document.getElementById('stop');
+      const rateVal = document.getElementById('rate-value');
+      const pitchVal = document.getElementById('pitch-value');
+      const volVal = document.getElementById('volume-value');
+
+      let voices = [];
+      let selectedVoice = null;
+
+      function loadVoices() {
+        voices = window.speechSynthesis.getVoices();
+        voiceSelect.innerHTML = '';
+        voices.forEach((v) => {
+          const opt = document.createElement('option');
+          opt.value = v.name;
+          opt.textContent = `${v.name} — ${v.lang}`;
+          voiceSelect.appendChild(opt);
+        });
+        
+        // Find an Indian voice (English or Hindi)
+        const indian = voices.find(v => /en-IN|hi-IN|india|hindi/i.test(v.lang + v.name));
+        selectedVoice = indian ? indian.name : voices[0]?.name;
+        
+        if (selectedVoice) {
+          voiceSelect.value = selectedVoice;
+        }
+      }
+
+      // This pattern is correct for handling async voice loading in browsers like Chrome
+      speechSynthesis.addEventListener('voiceschanged', loadVoices);
+      // Call it immediately in case voices are already loaded (like in Firefox)
+      loadVoices();
+
+      function speak() {
+        const text = textEl.value.trim();
+        if (!text) return;
+        
+        // Stop any currently playing speech
+        speechSynthesis.cancel();
+        
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.rate = parseFloat(rateEl.value);
+        utter.pitch = parseFloat(pitchEl.value);
+        utter.volume = parseFloat(volumeEl.value);
+        
+        // Get the selected voice object from the global 'voices' array
+        const voice = voices.find(v => v.name === voiceSelect.value);
+        if (voice) {
+          utter.voice = voice;
+        }
+        
+        speechSynthesis.speak(utter);
+      }
+
+      function stop() {
+        speechSynthesis.cancel();
+      }
+
+      speakBtn.addEventListener('click', speak);
+      stopBtn.addEventListener('click', stop);
+
+      rateEl.addEventListener('input', () => rateVal.textContent = rateEl.value);
+      pitchEl.addEventListener('input', () => pitchVal.textContent = pitchEl.value);
+      volumeEl.addEventListener('input', () => volVal.textContent = Math.round(volumeEl.value * 100));
+
+    } else {
+      // Handle browsers that don't support the API
+      alert('Sorry, your browser does not support the Web Speech API. Please try a modern browser.');
+      document.querySelector('.container').innerHTML = '<h1>Speech API Not Supported</h1>';
+    }
+  </script>
+</body>
+</html>
